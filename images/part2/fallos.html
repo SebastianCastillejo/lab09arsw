@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Fallos de la parte 2</title>
+<style>
+  body { font-family: Segoe UI, sans-serif; background: #fff; color: #111; margin: 28px; max-width: 920px; }
+  h1 { font-size: 26px; }
+  h2 { font-size: 18px; margin-top: 22px; }
+  pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>Mensajes reales de los fallos</h1>
+<p>Texto copiado de la consola. No es una captura del portal.</p>
+
+<h2>1. Azure CLI pidió administrador</h2>
+<pre>Error 1925. You do not have sufficient privileges to complete this installation for all users of the machine.
+El usuario ha cancelado la operación. (UAC)</pre>
+
+<h2>2. La cuenta de Rafael, antes de activar el beneficio</h2>
+<pre>Account: rafael.moreno-v@mail.escuelaing.edu.co
+Subscription:
+Tenant: ESCUELA COLOMBIANA DE INGENIERIA JULIO GARAVITO
+Get-AzSubscription no devolvió ninguna suscripción.</pre>
+
+<h2>3. La cuenta de Sebastián era Starter</h2>
+<pre>Subscription name: Azure for Students Starter
+The operation is not permitted for namespace 'Microsoft.Compute'.
+List of permitted provider namespaces is 'Microsoft.Resources, Microsoft.Web, Microsoft.Sql, ...'</pre>
+
+<h2>4. East US no dejó crear el NSG</h2>
+<pre>Resource 'LOAD_BALANCER_NSG' was disallowed by Azure: This policy maintains a set of best available regions...
+ErrorCode: RequestDisallowedByAzure</pre>
+
+<h2>5. Brazil South sí. B1ls no tenía cupo</h2>
+<pre>ALLOWED brazilsouth
+SIZE_FAIL Standard_B1ls ... SKUs have failed for Capacity Restrictions: Standard_B1ls
+is currently not available in location 'brazilsouth'.
+SIZE_FAIL Standard_B1s ... Capacity Restrictions
+SIZE_FAIL Standard_B2ats_v2 ... Capacity Restrictions
+SIZE_FAIL Standard_B2ts_v2 ... Capacity Restrictions
+VM_CREATED VM1 Standard_D2as_v4 zone=1</pre>
+
+<h2>6. La zona 2 no tenía D2as_v4, y solo hay 3 IP públicas</h2>
+<pre>New-AzVM : SKUs have failed for Capacity Restrictions: Standard_D2as_v4
+ErrorCode: SkuNotAvailable
+VM2 quedó en Standard_D2s_v4, zona 2.
+
+Cannot create more than 3 public IP addresses for this subscription in this region.
+ErrorCode: PublicIPCountLimitReached
+VM3 se creó sin IP pública, Standard_D2s_v4, zona 3.</pre>
+
+<h2>7. SSH no entró. forever no arrancó con Node 12</h2>
+<pre>ssh: connect to host 20.195.170.222 port 22: Connection timed out
+TcpTestSucceeded : False
+
+/usr/local/lib/node_modules/forever/.../index.cjs.js:1976
+    (limiters[m] ||= [])[channel] = modifier;
+SyntaxError: Unexpected token '='
+
+dpkg: error processing archive .../nodejs_20.20.2-1nodesource1_amd64.deb
+E: Sub-process /usr/bin/dpkg returned an error code (1)</pre>
+
+<h2>8. Lo que sí respondió después</h2>
+<pre>http://20.201.13.139/            Hello World
+http://20.201.13.139/fibonacci/1 The answer is 1
+Newman 1: 1m 49.9s, promedio 10.9s, fallos 0/10
+Newman 2: 1m 21.2s, promedio 8.0s, fallos 0/10</pre>
+</body>
+</html>

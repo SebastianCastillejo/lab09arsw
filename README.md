@@ -383,6 +383,168 @@ newman run ARSW_LOAD-BALANCING_AZURE.postman_collection.json -e [ARSW_LOAD-BALAN
 * Informe de newman 1 (Punto 2)
 * Presente el Diagrama de Despliegue de la solución.
 
+---
+
+## Respuestas Parte 2
+
+Las fotos, los textos de Newman y el video de esta parte están en el repositorio, no en un enlace externo.
+
+- Pantallazos: carpeta `images/part2/`. Ahí están Hello World (`lb-root.png`), `fibonacci/1` (`lb-fibonacci-1.png`), la tabla de Newman (`newman-resumen.png`) y los mensajes de los fallos (`fallos.png`).
+- Salidas completas de Newman: `images/part2/newman-1.txt` y `images/part2/newman-2.txt`.
+- Video de 37 segundos: [videos/part2/evidencia-parte2.webm](videos/part2/evidencia-parte2.webm). Recorre los fallos, las dos respuestas del balanceador y la tabla de Newman.
+
+### Tipos de balanceador, SKU e IP pública
+
+Azure tiene varios servicios para repartir tráfico y cada uno trabaja en un nivel distinto:
+
+| Servicio | Nivel | Para qué se usa |
+|---|---|---|
+| Azure Load Balancer | Capa 4 (TCP/UDP) | Reparte conexiones entre VMs de una misma región. No mira el contenido HTTP |
+| Application Gateway | Capa 7 (HTTP/HTTPS) | Enruta por URL o por host, termina SSL y puede llevar WAF |
+| Front Door | Capa 7, global | Reparte tráfico web entre regiones, con caché y WAF |
+| Traffic Manager | DNS | Manda al cliente a una región u otra resolviendo el nombre |
+
+En este laboratorio se usa Azure Load Balancer, porque la app solo necesita que las peticiones TCP al puerto 80 lleguen a alguna de las VMs.
+
+El SKU es la "versión" del recurso que uno compra, y define qué funciones trae y cómo se cobra. Para el Load Balancer existían dos:
+
+- **Basic:** gratis, sin zonas de disponibilidad, sin SLA y abierto por defecto. Microsoft lo retiró en septiembre de 2025, así que ya no se puede crear.
+- **Standard:** de pago, con SLA del 99,99 %, soporta zonas de disponibilidad, IP zone-redundant y hasta 1000 instancias en el pool. Es cerrado por defecto: si no hay un NSG que permita el tráfico, no pasa nada.
+
+También existe el SKU **Gateway**, que sirve para meter appliances de red (firewalls de terceros) en medio del tráfico, no para balancear una app.
+
+El balanceador necesita una IP pública porque es la única puerta de entrada que ven los clientes. El navegador y Newman siempre le pegan a la misma dirección, sin saber cuántas VMs hay detrás ni cuáles están vivas. Si el balanceador fuera interno (solo IP privada), únicamente se podría usar desde dentro de la VNet.
+
+### Backend Pool
+
+Es la lista de máquinas que van a atender las peticiones. En este caso son las NIC de VM1, VM2 y VM3. Cuando llega una conexión nueva, el balanceador elige una de las VMs del pool que estén sanas. Para escalar horizontalmente basta con agregar otra VM al pool, sin tocar la IP que usan los clientes.
+
+### Health Probe
+
+Es un chequeo que el balanceador hace cada cierto tiempo a cada VM del pool para saber si está viva. Aquí se configuró por TCP al puerto 3000, cada 5 segundos, y si falla 2 veces seguidas la VM se marca como caída. Mientras esté caída no recibe conexiones nuevas; cuando vuelve a responder, entra otra vez al reparto. Sin el probe, el balanceador seguiría mandando peticiones a una VM con la app apagada y el cliente vería errores.
+
+### Load Balancing Rule y sesión persistente
+
+La regla es la que une todo: dice que lo que entre por la IP pública en TCP puerto 80 se mande al backend pool por el puerto 3000, usando el health probe para saber qué VMs están disponibles. Por eso las URLs de la Parte 2 no llevan `:3000`.
+
+Tipos de persistencia de sesión:
+
+- **None (5-tupla):** se hace un hash con IP origen, puerto origen, IP destino, puerto destino y protocolo. Cada conexión nueva puede caer en una VM distinta.
+- **Client IP (2-tupla):** todas las conexiones de una misma IP de cliente van a la misma VM.
+- **Client IP and protocol (3-tupla):** igual que la anterior, pero separando por protocolo.
+
+Esto importa cuando la app guarda estado en memoria (sesiones, carritos). Si la sesión vive en una VM, el usuario tiene que volver a esa misma VM. El problema es que afecta la escalabilidad: con Client IP, todas las peticiones de Newman salen de un solo computador y caerían en una sola VM, mientras las otras dos quedan ociosas. Por eso aquí se dejó en **None**. La FibonacciApp no guarda estado, así que cualquier VM puede responder cualquier petición.
+
+### Virtual Network, Subnet, address space y address range
+
+La **Virtual Network** es la red privada del grupo de recursos dentro de Azure. Las VMs se hablan entre ellas por ahí y quedan aisladas de las redes de otros clientes.
+
+La **Subnet** es un pedazo de esa red. Sirve para separar grupos de máquinas y aplicarles reglas distintas (un NSG por subnet, por ejemplo).
+
+El **address space** es el rango total de IPs privadas de la VNet. Aquí es `10.1.0.0/16`, o sea 65.536 direcciones. El **address range** es el rango de la subnet, que tiene que estar dentro del address space. Aquí es `10.1.0.0/24`, 256 direcciones, de las cuales Azure reserva 5. De ese rango salen las IP privadas que reciben las NIC de las VMs.
+
+### Availability Zones e IP zone-redundant
+
+Una zona de disponibilidad es uno o varios datacenters dentro de la misma región, con su propia energía, refrigeración y red. Si una zona se cae, las otras siguen funcionando.
+
+Se pusieron VM1, VM2 y VM3 en las zonas 1, 2 y 3 para que una falla en un datacenter no tumbe todo el servicio. Si se cae la zona 1, el health probe saca a VM1 del pool y las otras dos siguen atendiendo.
+
+Que una IP sea **zone-redundant** significa que no está amarrada a una sola zona: Azure la sirve desde las tres. Si la IP del balanceador estuviera solo en la zona 1 y esa zona se cayera, nadie podría entrar aunque VM2 y VM3 estuvieran bien.
+
+### Network Security Group
+
+Es el firewall de Azure. Tiene reglas de entrada y salida que permiten o bloquean tráfico por IP, puerto y protocolo, y se puede poner sobre una NIC o sobre una subnet. Aquí el NSG `LOAD_BALANCER_NSG` deja pasar SSH (22) para administrar las VMs y el puerto 3000 para la app. Con el Load Balancer Standard es obligatorio: sin la regla del 3000, el tráfico del balanceador y del health probe se bloquea y todas las VMs aparecen caídas.
+
+### Qué falló en el camino
+
+Esto no salió a la primera. Abajo está cada tropiezo y por qué se cambió de plan. El pantallazo junta los mensajes tal como salieron en la consola. No es una foto del portal: esos errores salieron en PowerShell, no como ventanas. El video recorre esa misma página, las respuestas del balanceador y el resumen de Newman: [videos/part2/evidencia-parte2.webm](videos/part2/evidencia-parte2.webm).
+
+![Mensajes de los fallos](images/part2/fallos.png)
+
+**No se pudo instalar Azure CLI.** El instalador de Windows pidió permiso de administrador (`Error 1925. You do not have sufficient privileges`) y ese aviso no se pudo aceptar. Se siguió con los módulos de Azure para PowerShell instalados solo en el usuario.
+
+**La cuenta del correo de la Escuela, al principio, no tenía suscripción.** El inicio de sesión sí entró con `rafael.moreno-v@mail.escuelaing.edu.co`, pero `Get-AzSubscription` volvió vacío. Sin suscripción no hay máquinas ni balanceador.
+
+**Se probó otra cuenta y era el plan equivocado.** `sebastian.castillejo@mail.escuelaing.edu.co` tiene **Azure for Students Starter**. Ese plan no deja crear máquinas virtuales ni redes. Azure respondió que `Microsoft.Compute` no está permitido. En el grupo solo había un plan de App Service. El otro directorio de esa misma cuenta pidió una verificación extra y, al entrar, tampoco tenía suscripción. Starter no se puede convertir en la oferta de 100 USD desde un comando: Microsoft pide que el estudiante active [Azure for Students](https://azure.microsoft.com/free/students/) y pase la verificación.
+
+**Con la suscripción nueva de Rafael, East US rechazó el firewall.** El grupo se creó, pero el NSG `LOAD_BALANCER_NSG` salió con `RequestDisallowedByAzure`: la suscripción solo deja desplegar en unas regiones. Se probaron varias. **Brazil South** fue la que aceptó el NSG. Por eso el laboratorio no quedó en North Europe, que es la región de las capturas del enunciado.
+
+**B1ls no tenía cupo en Brazil South.** El tamaño del enunciado, y también B1s, B2ats_v2 y B2ts_v2, devolvieron `Capacity Restrictions` / `SkuNotAvailable`. La primera máquina que sí se creó fue VM1, `Standard_D2as_v4`, zona 1. La misma D2as_v4 no cupo en la zona 2, así que VM2 quedó en `Standard_D2s_v4`. Esas D2 son más caras que una B1ls. No fue una elección: fue el tamaño que Azure dejó crear.
+
+**Solo se pueden crear 3 IP públicas en esa región.** Ya estaban la del balanceador, la de VM1 y la de VM2. Al pedir la de VM3, Azure dijo `PublicIPCountLimitReached`. VM3 se creó igual, en la zona 3 y con `Standard_D2s_v4`, pero sin IP pública. El balanceador la alcanza por la IP privada. No se puede entrar por SSH a VM3 desde internet.
+
+**SSH a VM1 no conectó.** Desde este computador el puerto 22 dio `Connection timed out` (`TcpTestSucceeded : False`), aunque el NSG tiene abierta la regla. La aplicación se instaló con `Invoke-AzVMRunCommand`, que entra por el agente de Azure y no necesita el puerto 22.
+
+**`forever` no arrancó con el Node que trae Ubuntu.** Ubuntu 22.04 instala Node 12. El `forever` nuevo usa una sintaxis que ese Node no entiende (`SyntaxError: Unexpected token '='`). Instalar Node 20 con el paquete de NodeSource chocó con el Node de Ubuntu (`dpkg` devolvió error). Se dejó Node 20 con nvm, dentro del usuario de cada VM, y ahí `forever` sí levantó la app.
+
+El video está en [videos/part2/evidencia-parte2.webm](videos/part2/evidencia-parte2.webm). Dura 37 segundos. Pasa por cada mensaje de error, luego por Hello World, por `fibonacci/1` y por la tabla de Newman. Los pantallazos de abajo y los archivos `newman-1.txt` y `newman-2.txt` quedan como respaldo.
+
+### Informe de Newman (punto 2)
+
+La infraestructura quedó en la suscripción **Azure for Students** de `rafael.moreno-v@mail.escuelaing.edu.co`, grupo `SCALABILITY_LAB`, región **Brazil South**. East US y North Europe los bloquea la política de regiones de esa suscripción. Brazil South sí dejó crear el balanceador.
+
+El tamaño B1ls del enunciado no tenía capacidad en esa región. Quedó así:
+
+| VM | Zona | Tamaño | IP pública |
+|---|---|---|---|
+| VM1 | 1 | Standard_D2as_v4 | 20.195.170.222 |
+| VM2 | 2 | Standard_D2s_v4 | 191.233.29.50 |
+| VM3 | 3 | Standard_D2s_v4 | no tiene: la suscripción solo permite 3 IP públicas y ya estaban el balanceador, VM1 y VM2 |
+
+La IP del balanceador es **20.201.13.139**. Entra por el puerto 80 y reparte al 3000. La app se dejó con nvm, Node 20 y `forever`, porque el Node de Ubuntu 22.04 es la versión 12 y el `forever` actual no arranca ahí.
+
+Comprobación en el navegador:
+
+![Hello World por el balanceador](images/part2/lb-root.png)
+![fibonacci/1 por el balanceador](images/part2/lb-fibonacci-1.png)
+
+Se lanzaron dos Newman en paralelo, 10 iteraciones cada uno, contra `fibonacci/1000000`.
+
+| Corrida | Duración | Promedio | Mínimo | Máximo | Desviación | Fallos |
+|---|---|---|---|---|---|---|
+| 1 | 1 min 49.9 s | 10.9 s | 10.7 s | 11.4 s | 183 ms | 0/10 |
+| 2 | 1 min 21.2 s | 8.0 s | 7.8 s | 8.1 s | 79 ms | 0/10 |
+
+![Resumen de las dos corridas de Newman](images/part2/newman-resumen.png)
+
+Las salidas completas están en `images/part2/newman-1.txt` y `images/part2/newman-2.txt`.
+
+Comparado con la VM grande de la Parte 1 (D4as_v4, dos Newman en paralelo): allá el promedio fue 12.4 s, hubo 1 fallo de 10 y la duración fue 2 min 9 s. Con cuatro Newman en paralelo el promedio subió a unos 19 s y fallaron 4 de 40. Acá, con tres procesos Node detrás del balanceador, las 20 peticiones respondieron. El tiempo por petición sigue en el orden de los 8 a 11 s porque el algoritmo no cambió: cada VM sigue calculando Fibonacci en un solo núcleo. La diferencia es que ya no hay una sola cola. La desviación es de décimas de segundo, no de varios segundos.
+
+Costo, con precios públicos aproximados de Brasil Sur (cerca de 0,15 USD por hora para una D2 de 2 vCPU y 8 GB):
+
+- Horizontal: tres VM de ese tamaño son del orden de 0,45 USD por hora si se dejan encendidas, más el Load Balancer Standard (se cobra por la regla, cerca de 18 USD al mes) y las IP públicas.
+- Vertical: una sola D4as_v4, como la de la Parte 1, sale más barata por hora que estas tres D2 en Brasil Sur.
+
+El escalado horizontal sí cumplió mejor la parte de “responder todas las peticiones”. No salió más barato que agrandar una VM, porque no se pudo usar la B1ls del enunciado. Si las tres D2 se dejan prendidas, el crédito de 100 USD se consume en pocos días. Por eso, después de la prueba, las VM se desasignan. El balanceador sigue cobrando hasta que se borre el grupo `SCALABILITY_LAB`.
+
+### Diagrama de despliegue
+
+```mermaid
+flowchart LR
+    cliente["Cliente: navegador / Newman"] -->|"HTTP :80"| lbIp["IP pública zone-redundant"]
+
+    subgraph rg [Grupo de recursos SCALABILITY_LAB]
+        lbIp --> lb["SCALABILITY_LAB_LOAD_BALANCER (Standard)"]
+        lb --- probe["Health probe TCP :3000"]
+        lb --- regla["Regla 80 a 3000, sesión None"]
+
+        subgraph vnet [VNet 10.1.0.0/16]
+            subgraph subnet [Subnet 10.1.0.0/24 con LOAD_BALANCER_NSG]
+                subgraph pool [Backend pool]
+                    vm1["VM1 zona 1 D2as_v4, Node :3000"]
+                    vm2["VM2 zona 2 D2s_v4, Node :3000"]
+                    vm3["VM3 zona 3 D2s_v4, Node :3000"]
+                end
+            end
+        end
+
+        lb -->|":3000"| vm1
+        lb -->|":3000"| vm2
+        lb -->|":3000"| vm3
+    end
+```
+
 
 
 
