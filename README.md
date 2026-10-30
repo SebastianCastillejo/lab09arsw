@@ -219,9 +219,13 @@ Tiempos medidos con DevTools después del escalamiento vertical a Standard_D4as_
 ![fibonacci/1080000 - D4as_v4](images/part1/part1-scaled-browser-1080000.png)
 ![fibonacci/1090000 - D4as_v4](images/part1/part1-scaled-browser-1090000.png)
 
-### Paso 8 repetido – CPU con D4as_v4 (pendiente después de newman)
+### Paso 8 repetido – CPU con D4as_v4
 
-*Capturar el pico de CPU en Azure Monitor después de ejecutar las pruebas de newman.*
+![CPU D4as_v4 después de Newman](images/part1/part1-cpu-scaled-after-newman.png)
+
+El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que corresponden a los tests del browser y Newman. El promedio reportado es 1.9 %.
+
+**Interpretación:** La métrica de Azure promedia el uso de CPU sobre todos los vCPUs disponibles en intervalos de 5 minutos. Con D4as_v4 (4 vCPUs), aunque Node.js satura un núcleo al 100% durante cada cálculo (~6 s), eso equivale solo al 25 % del total de 4 núcleos. Repartido en un intervalo de 5 minutos (donde el test duró ~1 minuto), el promedio se diluye a ~1.9 %. El comportamiento real del núcleo activo es idéntico al del tamaño inicial, confirmando que la CPU adicional no se aprovecha.
 
 ### Paso 9 repetido – Newman con D4as_v4
 
