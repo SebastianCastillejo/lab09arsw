@@ -283,7 +283,7 @@ Comparativa paso 9 (2 paralelas) vs paso 11 (4 paralelas):
 
 El comportamiento con 4 instancias es peor que con 2. El tiempo promedio subió de 12.4s a ~19s y la tasa de fallos aumentó de 1/10 a 4/40. Con 4 instancias enviando 40 peticiones simultáneas al servidor Node.js (single-threaded), la cola se hace más larga: las peticiones al final esperan hasta ~38s y algunas agotaron el timeout del cliente (ECONNRESET). Esto demuestra que el escalamiento vertical no resuelve el problema de concurrencia para este escenario.
 
-https://youtu.be/T3jpBQgWDSo
+https://youtu.be/S56cuRLvTq8
 
 
 
