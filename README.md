@@ -103,7 +103,7 @@ Cuando un conjunto de usuarios consulta un enésimo número (superior a 1000000)
 
 ### Pregunta 1 y 2 – Recursos creados con la VM
 
-Azure crea automáticamente **5 recursos adicionales** junto con la VM:
+Azure crea automáticamente 5 recursos adicionales junto con la VM:
 
 ![Recursos creados junto con la VM](images/part1/part1-resources.png)
 
@@ -118,9 +118,9 @@ Azure crea automáticamente **5 recursos adicionales** junto con la VM:
 
 ### Pregunta 3 – Por qué se cae la app al cerrar SSH
 
-Al ejecutar `node FibonacciApp.js` en la terminal SSH, el proceso pertenece a esa sesión de shell. Cuando se cierra la conexión SSH, el sistema operativo envía la señal `SIGHUP` a todos los procesos hijos de esa sesión, lo que termina el proceso Node.js. Para que la aplicación sobreviva se debe usar `forever`, `pm2`, `nohup` o un servicio systemd que desacople el proceso de la sesión SSH.
+Al ejecutar `node FibonacciApp.js` en la terminal SSH, el proceso pertenece a esa sesión de shell. Cuando se cierra la conexión SSH, el sistema operativo envía la señal SIGHUP a todos los procesos hijos de esa sesión, lo que termina el proceso Node.js. Para que la aplicación sobreviva se debe usar forever, pm2, nohup o un servicio systemd que desacople el proceso de la sesión SSH.
 
-El *Inbound port rule* es necesario porque el NSG bloquea todo el tráfico entrante por defecto. Sin la regla que abre el puerto 3000, el firewall descarta los paquetes antes de que lleguen a la aplicación, aunque esta esté corriendo correctamente dentro de la VM.
+El Inbound port rule es necesario porque el NSG bloquea todo el tráfico entrante por defecto. Sin la regla que abre el puerto 3000, el firewall descarta los paquetes antes de que lleguen a la aplicación, aunque esta esté corriendo correctamente dentro de la VM.
 
 ### Pregunta 4 – Tabla de tiempos (tamaño inicial)
 
@@ -139,7 +139,7 @@ Tiempos de respuesta medidos con la consola del navegador (DevTools → Red):
 | 1.080.000 | ~6.5 s |
 | 1.090.000 | ~6.5 s |
 
-**Capturas de browser (tamaño inicial):**
+Capturas de browser (tamaño inicial):
 
 ![fibonacci/1010000](images/part1/part1-browser-1010000.png)
 ![fibonacci/1020000](images/part1/part1-browser-1020000.png)
@@ -150,21 +150,21 @@ Tiempos de respuesta medidos con la consola del navegador (DevTools → Red):
 ![fibonacci/1080000](images/part1/part1-browser-1080000.png)
 ![fibonacci/1090000](images/part1/part1-browser-1090000.png)
 
-**Interpretación:** La función calcula Fibonacci mediante recursión o iteración sin memoización, lo que la obliga a recorrer la secuencia completa en cada petición. Para n = 1.000.000 realiza ~1 millón de operaciones aritméticas con números de precisión arbitraria (`big-integer`), lo que es intensivo en CPU y explica los ~6 segundos por petición.
+La función calcula Fibonacci sin memoización, obligándola a recorrer la secuencia completa en cada petición. Para n = 1.000.000 realiza ~1 millón de operaciones aritméticas con números de precisión arbitraria (big-integer), lo que es intensivo en CPU y explica los ~6 segundos por petición.
 
 ### Pregunta 5 – Consumo de CPU (tamaño inicial)
 
 ![CPU consumo tamaño inicial](images/part1/part1-cpu-initial.png)
 
-**Interpretación:** El consumo de CPU ronda el 2.32% en reposo porque la plataforma de métricas reporta el promedio del período completo. Durante la ejecución de las peticiones la CPU alcanza el 100% momentáneamente (el algoritmo es puramente computacional, sin I/O que libere el hilo). Con el tamaño inicial (D2as_v4, 2 vCPUs) una sola petición puede saturar un núcleo por completo, impidiendo que otras peticiones concurrentes sean atendidas con normalidad.
+El consumo de CPU ronda el 2.32% porque la plataforma de métricas reporta el promedio del período completo. Durante la ejecución de las peticiones la CPU alcanza el 100% momentáneamente (el algoritmo es puramente computacional, sin I/O que libere el hilo). Con el tamaño inicial (D2as_v4, 2 vCPUs) una sola petición puede saturar un núcleo por completo, impidiendo que otras peticiones concurrentes sean atendidas con normalidad.
 
 ### Pregunta 6 – Resumen de ejecución Postman/Newman (tamaño inicial)
 
 ![Newman resultados tamaño inicial](images/part1/part1-newman-initial.png)
 
-**Interpretación:**
-- **Tiempos de ejecución:** Todas las peticiones tardaron entre 6.3 s y 6.5 s (promedio 6.3 s, s.d. 72 ms). La variación mínima indica que el algoritmo es determinista y la carga de red es despreciable comparada con el tiempo de cómputo.
-- **Fallos:** 0 de 10 peticiones fallaron. La VM procesó las 10 iteraciones secuenciales sin errores, aunque el tiempo total fue de 1 minuto 4.6 segundos, lo que demuestra que el sistema no puede atender concurrencia real sin degradar el servicio.
+Tiempos de ejecución: todas las peticiones tardaron entre 6.3 s y 6.5 s (promedio 6.3 s, s.d. 72 ms). La variación mínima indica que el algoritmo es determinista y la carga de red es despreciable comparada con el tiempo de cómputo.
+
+Fallos: 0 de 10 peticiones fallaron. La VM procesó las 10 iteraciones secuenciales sin errores, aunque el tiempo total fue de 1 minuto 4.6 segundos, lo que demuestra que el sistema no puede atender concurrencia real sin degradar el servicio.
 
 ### Pregunta 7 – Diferencia entre B2ms y B1ls
 
@@ -177,19 +177,19 @@ Tiempos de respuesta medidos con la consola del navegador (DevTools → Red):
 | Costo aprox. | ~$3.80/mes | ~$60/mes |
 | Modelo de bursting | Burstable (acumula créditos en reposo, los consume en picos) | Burstable con mayor baseline |
 
-La diferencia más relevante no es solo de specs: la **B1ls está diseñada para cargas mínimas** (CI/CD agents, proxies ligeros), mientras que la **B2ms** puede sostener picos de CPU por más tiempo gracias a sus 24 créditos/hora y tiene suficiente RAM para cargas de trabajo reales. Con la FibonacciApp, la B1ls agotaría sus créditos de CPU rápidamente bajo carga concurrente y el rendimiento caería al baseline (10% de 1 vCPU).
+La diferencia más relevante no es solo de specs: la B1ls está diseñada para cargas mínimas (CI/CD agents, proxies ligeros), mientras que la B2ms puede sostener picos de CPU por más tiempo gracias a sus 24 créditos/hora y tiene suficiente RAM para cargas de trabajo reales. Con la FibonacciApp, la B1ls agotaría sus créditos de CPU rápidamente bajo carga concurrente y el rendimiento caería al baseline (10% de 1 vCPU).
 
 ### Pregunta 8 – ¿Es buena solución escalar verticalmente?
 
-No es la solución óptima para este escenario. Aumentar el tamaño de la VM mejora el throughput para una sola petición pesada, pero el algoritmo sin memoización seguirá consumiendo 100% de un núcleo por petición. Con 4 vCPUs podemos atender 4 peticiones simultáneas, pero el costo de la VM se dispara. Además, **al cambiar el tamaño la VM se reinicia**, por lo que la FibonacciApp deja de estar disponible durante el proceso de redimensionamiento (downtime).
+No es la solución óptima para este escenario. Aumentar el tamaño de la VM mejora el throughput para una sola petición pesada, pero el algoritmo sin memoización seguirá consumiendo 100% de un núcleo por petición. Con 4 vCPUs podemos atender 4 peticiones simultáneas, pero el costo de la VM se dispara. Además, al cambiar el tamaño la VM se reinicia, por lo que la FibonacciApp deja de estar disponible durante el proceso de redimensionamiento (downtime).
 
 ### Pregunta 9 – Efectos del cambio de tamaño
 
-Al redimensionar la VM, Azure **detiene y reinicia** la máquina virtual. Efectos negativos:
-- **Downtime:** El servicio queda inaccesible durante el reinicio (~1-3 minutos).
-- **Pérdida del estado en memoria:** Cualquier caché o sesión en memoria se pierde.
-- **IP dinámica:** Si la IP pública no es estática, puede cambiar.
-- **Costo inmediato:** El cambio a un tamaño mayor incrementa la factura a partir del momento del cambio, aunque la carga sea baja.
+Al redimensionar la VM, Azure detiene y reinicia la máquina virtual. Efectos negativos:
+- Downtime: el servicio queda inaccesible durante el reinicio (~1-3 minutos).
+- Pérdida del estado en memoria: cualquier caché o sesión en memoria se pierde.
+- IP dinámica: si la IP pública no es estática, puede cambiar.
+- Costo inmediato: el cambio a un tamaño mayor incrementa la factura a partir del momento del cambio, aunque la carga sea baja.
 
 ### Paso 7 repetido – Tiempos de respuesta con D4as_v4
 
@@ -225,18 +225,18 @@ Tiempos medidos con DevTools después del escalamiento vertical a Standard_D4as_
 
 El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que corresponden a los tests del browser y Newman. El promedio reportado es 1.9 %.
 
-**Interpretación:** La métrica de Azure promedia el uso de CPU sobre todos los vCPUs disponibles en intervalos de 5 minutos. Con D4as_v4 (4 vCPUs), aunque Node.js satura un núcleo al 100% durante cada cálculo (~6 s), eso equivale solo al 25 % del total de 4 núcleos. Repartido en un intervalo de 5 minutos (donde el test duró ~1 minuto), el promedio se diluye a ~1.9 %. El comportamiento real del núcleo activo es idéntico al del tamaño inicial, confirmando que la CPU adicional no se aprovecha.
+La métrica de Azure promedia el uso de CPU sobre todos los vCPUs disponibles en intervalos de 5 minutos. Con D4as_v4 (4 vCPUs), aunque Node.js satura un núcleo al 100% durante cada cálculo (~6 s), eso equivale solo al 25 % del total de 4 núcleos. Repartido en un intervalo de 5 minutos (donde el test duró ~1 minuto), el promedio se diluye a ~1.9 %. El comportamiento real del núcleo activo es idéntico al del tamaño inicial, confirmando que la CPU adicional no se aprovecha.
 
 ### Paso 9 repetido – Newman con D4as_v4
 
 ![Newman resultados D4as_v4](images/part1/part1-newman-4parallel.png)
 
-**Resultados:**
-- Iteraciones: 10 — Fallos: **1**
-- Duración total: **2m 9s**
-- Tiempo promedio de respuesta: **12.4s** [min: 6.3s, max: 21.8s, s.d.: 4.9s]
+Resultados:
+- Iteraciones: 10 — Fallos: 1
+- Duración total: 2m 9s
+- Tiempo promedio de respuesta: 12.4s [min: 6.3s, max: 21.8s, s.d.: 4.9s]
 
-**Comparación inicial vs escalado:**
+Comparación inicial vs escalado:
 
 | Métrica | Tamaño inicial | D4as_v4 (escalado) |
 |---|---|---|
@@ -249,18 +249,18 @@ El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que co
 
 ### Pregunta 10 – ¿Hubo mejora en el consumo de CPU o en los tiempos de respuesta?
 
-**No, el rendimiento empeoró bajo carga concurrente.** Con el tamaño inicial la prueba de Newman dio 0 fallos y promedio de 6.3s. Con D4as_v4 bajo carga concurrente el promedio subió a 12.4s y apareció 1 fallo (ECONNRESET), con una desviación estándar de 4.9s que indica alta variabilidad. Esto ocurre porque:
+No, el rendimiento empeoró bajo carga concurrente. Con el tamaño inicial la prueba de Newman dio 0 fallos y promedio de 6.3s. Con D4as_v4 bajo carga concurrente el promedio subió a 12.4s y apareció 1 fallo (ECONNRESET), con una desviación estándar de 4.9s que indica alta variabilidad. Esto ocurre porque:
 
-1. **Node.js es single-threaded**: el event loop procesa una sola solicitud CPU-intensiva a la vez. Cuando múltiples clientes hacen peticiones simultáneas, se encolan y cada una espera a que termine la anterior.
-2. **El algoritmo no usa paralelismo**: calcula la secuencia de Fibonacci de forma secuencial, por lo que tener 4 vCPUs en lugar de 2 no reduce el tiempo de cálculo por petición.
-3. **La CPU adicional no se aprovecha**: el consumo de CPU con D4as_v4 fue de ~1.9% promedio (vs ~2.32% inicial), lo que confirma que los núcleos extra quedaron ociosos. El cuello de botella es el algoritmo, no el hardware.
-4. **Conclusión**: el escalamiento vertical **no es la solución correcta** para este escenario. La solución adecuada sería usar memoización (cachear resultados calculados) o escalamiento horizontal con un balanceador de carga que distribuya las peticiones entre múltiples instancias del servidor.
+1. Node.js es single-threaded: el event loop procesa una sola solicitud CPU-intensiva a la vez. Cuando múltiples clientes hacen peticiones simultáneas, se encolan y cada una espera a que termine la anterior.
+2. El algoritmo no usa paralelismo: calcula la secuencia de Fibonacci de forma secuencial, por lo que tener 4 vCPUs en lugar de 2 no reduce el tiempo de cálculo por petición.
+3. La CPU adicional no se aprovecha: el consumo de CPU con D4as_v4 fue de ~1.9% promedio (vs ~2.32% inicial), lo que confirma que los núcleos extra quedaron ociosos. El cuello de botella es el algoritmo, no el hardware.
+4. El escalamiento vertical no es la solución correcta para este escenario. La solución adecuada sería usar memoización (cachear resultados calculados) o escalamiento horizontal con un balanceador de carga que distribuya las peticiones entre múltiples instancias del servidor.
 
 ### Pregunta 11 – 4 instancias paralelas de newman
 
-*(screenshot pendiente)*
+![Newman 4 instancias paralelas](images/part1/part1-newman-4parallel-full.png)
 
-**Resultados de las 4 instancias paralelas (D4as_v4):**
+Resultados de las 4 instancias paralelas (D4as_v4):
 
 | Instancia | Duración | Tiempo promedio | Fallos |
 |---|---|---|---|
@@ -268,20 +268,20 @@ El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que co
 | Background 1 | 2m 51.2s | 17s [min 10.7s, max 27.6s] | 1/10 |
 | Background 2 | 2m 45.6s | 16.4s [min 10.6s, max 33.3s] | 0/10 |
 | Background 3 | 3m 19.6s | 22.9s [min 6.3s, max 38.9s] | 2/10 |
-| **Total** | **~3m 20s** | **~19s promedio** | **4/40 (10%)** |
+| Total | ~3m 20s | ~19s promedio | 4/40 (10%) |
 
-Los errores `ECONNRESET` ocurrieron cuando el servidor tardó demasiado y el cliente cortó la conexión antes de recibir respuesta.
+Los errores ECONNRESET ocurrieron cuando el servidor tardó demasiado y el cliente cortó la conexión antes de recibir respuesta.
 
-**Comparativa 1 instancia vs 4 instancias paralelas:**
+Comparativa paso 9 (2 paralelas) vs paso 11 (4 paralelas):
 
-| Métrica | 1 instancia (paso 9) | 4 instancias (paso 11) |
+| Métrica | 2 instancias (paso 9) | 4 instancias (paso 11) |
 |---|---|---|
-| Tiempo promedio | 6.3s | ~19s (+200%) |
-| Duración total | 1m 4.7s | ~3m 20s |
-| Fallos | 0/10 | 4/40 (10%) |
-| Desviación estándar | 60ms | ~7-13s |
+| Tiempo promedio | 12.4s | ~19s (+53%) |
+| Duración total | 2m 9s | ~3m 20s |
+| Fallos | 1/10 | 4/40 (10%) |
+| Desviación estándar | 4.9s | ~7-13s |
 
-**¿El comportamiento es porcentualmente mejor? No, es significativamente peor.** El tiempo promedio se triplicó (~19s vs 6.3s) y aparecieron fallos de conexión (10%). Con 4 instancias enviando 40 peticiones en total al mismo tiempo, el servidor Node.js (single-threaded) las encola todas. Las peticiones al final de la cola esperan hasta ~38s antes de ser atendidas, y algunas agotaron el timeout del cliente (ECONNRESET). Esto demuestra que el escalamiento vertical no resuelve el problema de concurrencia para este escenario.
+El comportamiento con 4 instancias es peor que con 2. El tiempo promedio subió de 12.4s a ~19s y la tasa de fallos aumentó de 1/10 a 4/40. Con 4 instancias enviando 40 peticiones simultáneas al servidor Node.js (single-threaded), la cola se hace más larga: las peticiones al final esperan hasta ~38s y algunas agotaron el timeout del cliente (ECONNRESET). Esto demuestra que el escalamiento vertical no resuelve el problema de concurrencia para este escenario.
 
 ### Parte 2 - Escalabilidad horizontal
 
