@@ -255,9 +255,25 @@ El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que co
 2. **El algoritmo no usa paralelismo**: calcula la secuencia de Fibonacci de forma secuencial sin aprovechar los núcleos extra.
 3. **El cuello de botella es el algoritmo, no la CPU**: la solución correcta sería implementar memoización (caché de resultados) o usar `worker_threads` para distribuir el cómputo entre núcleos.
 
-### Pregunta 11 – 4 instancias paralelas de newman (pendiente)
+### Pregunta 11 – 4 instancias paralelas de newman
 
-*Esta respuesta se completará al ejecutar el comando con 4 instancias paralelas.*
+![Newman 4 instancias paralelas](images/part1/part1-newman-4parallel.png)
+
+**Resultados con 4 instancias paralelas (D4as_v4):**
+- Iteraciones: 10 — Requests: 10 ejecutados, **1 fallido**
+- Duración total: **2m 9s**
+- Tiempo promedio: **12.4s** [min: 6.3s, max: 21.8s, s.d.: 4.9s]
+
+**Comparativa:**
+
+| Métrica | 1 instancia | 4 instancias paralelas |
+|---|---|---|
+| Tiempo promedio | 6.3s | 12.4s (+97%) |
+| Duración total | 1m 4.7s | 2m 9s |
+| Fallos | 0/10 | 1/10 |
+| Desviación estándar | 60ms | 4.9s |
+
+**¿El comportamiento es porcentualmente mejor? No.** Con 4 instancias paralelas el rendimiento empeoró: el tiempo promedio casi se duplicó (12.4s vs 6.3s), la variabilidad aumentó drásticamente (s.d. 4.9s vs 60ms) y apareció 1 fallo. Esto confirma la limitación fundamental: Node.js procesa las solicitudes CPU-intensivas en un solo hilo. Con 4 clientes concurrentes enviando 10 peticiones cada uno (40 peticiones en total), el servidor las encola y cada petición espera más. La última petición registrada tardó 17s. El escalamiento vertical no resuelve el problema de concurrencia para este tipo de carga.
 
 ### Parte 2 - Escalabilidad horizontal
 
