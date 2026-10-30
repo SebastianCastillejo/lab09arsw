@@ -103,16 +103,18 @@ Cuando un conjunto de usuarios consulta un enésimo número (superior a 1000000)
 
 ### Pregunta 1 y 2 – Recursos creados con la VM
 
-Azure crea automáticamente los siguientes 5 recursos junto con la VM:
+Azure crea automáticamente **5 recursos adicionales** junto con la VM:
 
-| Recurso | Para qué sirve |
-|---|---|
-| Virtual machine | La máquina virtual en sí; ejecuta el sistema operativo y la aplicación |
-| Network interface (NIC) | Conecta la VM a la red virtual y asigna la IP privada |
-| Public IP address | IP pública estática que permite acceder a la VM desde internet |
-| Network security group (NSG) | Firewall que controla el tráfico entrante y saliente mediante reglas de puerto |
-| Virtual network (VNet) | Red privada dentro de Azure donde se conectan todos los recursos |
-| OS disk | Disco de almacenamiento con el sistema operativo de la VM |
+![Recursos creados junto con la VM](images/part1/part1-resources.png)
+
+| Nombre en Azure | Tipo | Para qué sirve |
+|---|---|---|
+| VERTICAL-SCALABILITY | Virtual machine | La máquina virtual en sí; ejecuta el sistema operativo y la aplicación |
+| vertical-scalability989_z1 | Network interface (NIC) | Conecta la VM a la red virtual y le asigna la dirección IP privada |
+| VERTICAL-SCALABILITY-ip | Public IP address | IP pública que permite acceder a la VM desde internet |
+| VERTICAL-SCALABILITY-nsg | Network security group | Firewall que controla el tráfico entrante y saliente mediante reglas de puerto |
+| VERTICAL-SCALABILITY-vnet | Virtual network | Red privada dentro de Azure donde se conectan todos los recursos |
+| (disco OS) | Managed disk | Disco de almacenamiento persistente con el sistema operativo de la VM |
 
 ### Pregunta 3 – Por qué se cae la app al cerrar SSH
 
