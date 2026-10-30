@@ -223,9 +223,33 @@ Tiempos medidos con DevTools después del escalamiento vertical a Standard_D4as_
 
 *Capturar el pico de CPU en Azure Monitor después de ejecutar las pruebas de newman.*
 
+### Paso 9 repetido – Newman con D4as_v4
+
+![Newman resultados D4as_v4](images/part1/part1-newman-scaled.png)
+
+**Resultados:**
+- Iteraciones: 10 — Fallos: 0
+- Duración total: **1m 4.7s**
+- Tiempo promedio de respuesta: **6.3s** [min: 6.3s, max: 6.5s, s.d.: 60ms]
+
+**Comparación inicial vs escalado:**
+
+| Métrica | Tamaño inicial | D4as_v4 (escalado) |
+|---|---|---|
+| Duración total | 1m 4.6s | 1m 4.7s |
+| Tiempo promedio | 6.3s | 6.3s |
+| Mínimo | 6.3s | 6.3s |
+| Máximo | 6.5s | 6.5s |
+| Desviación estándar | 72ms | 60ms |
+| Fallos | 0/10 | 0/10 |
+
 ### Pregunta 10 – ¿Hubo mejora en el consumo de CPU o en los tiempos de respuesta?
 
-**No hubo mejora significativa.** Aunque el D4as_v4 tiene 4 vCPUs (el doble que el tamaño inicial), el algoritmo de Fibonacci está implementado sin memoización y Node.js es **single-threaded**: una sola petición ocupa un núcleo al 100% mientras las demás esperan en cola. Duplicar o cuadruplicar los vCPUs no reduce el tiempo de cálculo de una petición individual, solo permite procesar más peticiones en paralelo (pero aun así de una en una en Node.js). El tiempo por petición individual sigue siendo ~6 s.
+**No.** Los resultados de Newman son prácticamente idénticos: mismo tiempo promedio (6.3s), misma duración total (~1m 4.7s) y cero fallos en ambos casos. Aumentar de 2 a 4 vCPUs no mejoró el rendimiento porque:
+
+1. **Node.js es single-threaded**: el event loop procesa una sola solicitud CPU-intensiva a la vez. Las peticiones adicionales se encolan y esperan.
+2. **El algoritmo no usa paralelismo**: calcula la secuencia de Fibonacci de forma secuencial sin aprovechar los núcleos extra.
+3. **El cuello de botella es el algoritmo, no la CPU**: la solución correcta sería implementar memoización (caché de resultados) o usar `worker_threads` para distribuir el cómputo entre núcleos.
 
 ### Pregunta 11 – 4 instancias paralelas de newman (pendiente)
 
