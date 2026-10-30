@@ -249,11 +249,12 @@ El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que co
 
 ### Pregunta 10 – ¿Hubo mejora en el consumo de CPU o en los tiempos de respuesta?
 
-**No.** Los resultados de Newman son prácticamente idénticos: mismo tiempo promedio (6.3s), misma duración total (~1m 4.7s) y cero fallos en ambos casos. Aumentar de 2 a 4 vCPUs no mejoró el rendimiento porque:
+**No, el rendimiento empeoró bajo carga concurrente.** Con el tamaño inicial la prueba de Newman dio 0 fallos y promedio de 6.3s. Con D4as_v4 bajo carga concurrente el promedio subió a 12.4s y apareció 1 fallo (ECONNRESET), con una desviación estándar de 4.9s que indica alta variabilidad. Esto ocurre porque:
 
-1. **Node.js es single-threaded**: el event loop procesa una sola solicitud CPU-intensiva a la vez. Las peticiones adicionales se encolan y esperan.
-2. **El algoritmo no usa paralelismo**: calcula la secuencia de Fibonacci de forma secuencial sin aprovechar los núcleos extra.
-3. **El cuello de botella es el algoritmo, no la CPU**: la solución correcta sería implementar memoización (caché de resultados) o usar `worker_threads` para distribuir el cómputo entre núcleos.
+1. **Node.js es single-threaded**: el event loop procesa una sola solicitud CPU-intensiva a la vez. Cuando múltiples clientes hacen peticiones simultáneas, se encolan y cada una espera a que termine la anterior.
+2. **El algoritmo no usa paralelismo**: calcula la secuencia de Fibonacci de forma secuencial, por lo que tener 4 vCPUs en lugar de 2 no reduce el tiempo de cálculo por petición.
+3. **La CPU adicional no se aprovecha**: el consumo de CPU con D4as_v4 fue de ~1.9% promedio (vs ~2.32% inicial), lo que confirma que los núcleos extra quedaron ociosos. El cuello de botella es el algoritmo, no el hardware.
+4. **Conclusión**: el escalamiento vertical **no es la solución correcta** para este escenario. La solución adecuada sería usar memoización (cachear resultados calculados) o escalamiento horizontal con un balanceador de carga que distribuya las peticiones entre múltiples instancias del servidor.
 
 ### Pregunta 11 – 4 instancias paralelas de newman
 
