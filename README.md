@@ -229,7 +229,7 @@ El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que co
 
 ### Paso 9 repetido – Newman con D4as_v4
 
-![Newman resultados D4as_v4](images/part1/part1-newman-scaled.png)
+![Newman 4 instancias paralelas](images/part1/part1-newman-4parallel.png)
 
 **Resultados:**
 - Iteraciones: 10 — Fallos: 0
@@ -259,21 +259,28 @@ El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que co
 
 ![Newman 4 instancias paralelas](images/part1/part1-newman-4parallel.png)
 
-**Resultados con 4 instancias paralelas (D4as_v4):**
-- Iteraciones: 10 — Requests: 10 ejecutados, **1 fallido**
-- Duración total: **2m 9s**
-- Tiempo promedio: **12.4s** [min: 6.3s, max: 21.8s, s.d.: 4.9s]
+**Resultados de las 4 instancias paralelas (D4as_v4):**
 
-**Comparativa:**
+| Instancia | Duración | Tiempo promedio | Fallos |
+|---|---|---|---|
+| Foreground | 3m 7.9s | 19.7s [min 6.3s, max 33.1s] | 1/10 |
+| Background 1 | 2m 51.2s | 17s [min 10.7s, max 27.6s] | 1/10 |
+| Background 2 | 2m 45.6s | 16.4s [min 10.6s, max 33.3s] | 0/10 |
+| Background 3 | 3m 19.6s | 22.9s [min 6.3s, max 38.9s] | 2/10 |
+| **Total** | **~3m 20s** | **~19s promedio** | **4/40 (10%)** |
 
-| Métrica | 1 instancia | 4 instancias paralelas |
+Los errores `ECONNRESET` ocurrieron cuando el servidor tardó demasiado y el cliente cortó la conexión antes de recibir respuesta.
+
+**Comparativa 1 instancia vs 4 instancias paralelas:**
+
+| Métrica | 1 instancia (paso 9) | 4 instancias (paso 11) |
 |---|---|---|
-| Tiempo promedio | 6.3s | 12.4s (+97%) |
-| Duración total | 1m 4.7s | 2m 9s |
-| Fallos | 0/10 | 1/10 |
-| Desviación estándar | 60ms | 4.9s |
+| Tiempo promedio | 6.3s | ~19s (+200%) |
+| Duración total | 1m 4.7s | ~3m 20s |
+| Fallos | 0/10 | 4/40 (10%) |
+| Desviación estándar | 60ms | ~7-13s |
 
-**¿El comportamiento es porcentualmente mejor? No.** Con 4 instancias paralelas el rendimiento empeoró: el tiempo promedio casi se duplicó (12.4s vs 6.3s), la variabilidad aumentó drásticamente (s.d. 4.9s vs 60ms) y apareció 1 fallo. Esto confirma la limitación fundamental: Node.js procesa las solicitudes CPU-intensivas en un solo hilo. Con 4 clientes concurrentes enviando 10 peticiones cada uno (40 peticiones en total), el servidor las encola y cada petición espera más. La última petición registrada tardó 17s. El escalamiento vertical no resuelve el problema de concurrencia para este tipo de carga.
+**¿El comportamiento es porcentualmente mejor? No, es significativamente peor.** El tiempo promedio se triplicó (~19s vs 6.3s) y aparecieron fallos de conexión (10%). Con 4 instancias enviando 40 peticiones en total al mismo tiempo, el servidor Node.js (single-threaded) las encola todas. Las peticiones al final de la cola esperan hasta ~38s antes de ser atendidas, y algunas agotaron el timeout del cliente (ECONNRESET). Esto demuestra que el escalamiento vertical no resuelve el problema de concurrencia para este escenario.
 
 ### Parte 2 - Escalabilidad horizontal
 
