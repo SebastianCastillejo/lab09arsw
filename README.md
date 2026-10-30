@@ -97,6 +97,106 @@ Cuando un conjunto de usuarios consulta un enésimo número (superior a 1000000)
 10. ¿Hubo mejora en el consumo de CPU o en los tiempos de respuesta? Si/No ¿Por qué?
 11. Aumente la cantidad de ejecuciones paralelas del comando de postman a `4`. ¿El comportamiento del sistema es porcentualmente mejor?
 
+---
+
+## Respuestas Parte 1
+
+### Pregunta 1 y 2 – Recursos creados con la VM
+
+Azure crea automáticamente los siguientes 5 recursos junto con la VM:
+
+| Recurso | Para qué sirve |
+|---|---|
+| Virtual machine | La máquina virtual en sí; ejecuta el sistema operativo y la aplicación |
+| Network interface (NIC) | Conecta la VM a la red virtual y asigna la IP privada |
+| Public IP address | IP pública estática que permite acceder a la VM desde internet |
+| Network security group (NSG) | Firewall que controla el tráfico entrante y saliente mediante reglas de puerto |
+| Virtual network (VNet) | Red privada dentro de Azure donde se conectan todos los recursos |
+| OS disk | Disco de almacenamiento con el sistema operativo de la VM |
+
+### Pregunta 3 – Por qué se cae la app al cerrar SSH
+
+Al ejecutar `node FibonacciApp.js` en la terminal SSH, el proceso pertenece a esa sesión de shell. Cuando se cierra la conexión SSH, el sistema operativo envía la señal `SIGHUP` a todos los procesos hijos de esa sesión, lo que termina el proceso Node.js. Para que la aplicación sobreviva se debe usar `forever`, `pm2`, `nohup` o un servicio systemd que desacople el proceso de la sesión SSH.
+
+El *Inbound port rule* es necesario porque el NSG bloquea todo el tráfico entrante por defecto. Sin la regla que abre el puerto 3000, el firewall descarta los paquetes antes de que lleguen a la aplicación, aunque esta esté corriendo correctamente dentro de la VM.
+
+### Pregunta 4 – Tabla de tiempos (tamaño inicial)
+
+Tiempos de respuesta medidos con la consola del navegador (DevTools → Red):
+
+| n-ésimo Fibonacci | Tiempo de respuesta |
+|---|---|
+| 1.000.000 | ~6.3 s |
+| 1.010.000 | ~6.3 s |
+| 1.020.000 | ~6.3 s |
+| 1.030.000 | ~6.4 s |
+| 1.040.000 | ~6.4 s |
+| 1.050.000 | ~6.4 s |
+| 1.060.000 | ~6.4 s |
+| 1.070.000 | ~6.4 s |
+| 1.080.000 | ~6.5 s |
+| 1.090.000 | ~6.5 s |
+
+**Capturas de browser (tamaño inicial):**
+
+![fibonacci/1010000](images/part1/part1-browser-1010000.png)
+![fibonacci/1020000](images/part1/part1-browser-1020000.png)
+![fibonacci/1030000](images/part1/part1-browser-1030000.png)
+![fibonacci/1040000](images/part1/part1-browser-1040000.png)
+![fibonacci/1050000](images/part1/part1-browser-1050000.png)
+![fibonacci/1070000](images/part1/part1-browser-1070000.png)
+![fibonacci/1080000](images/part1/part1-browser-1080000.png)
+![fibonacci/1090000](images/part1/part1-browser-1090000.png)
+
+**Interpretación:** La función calcula Fibonacci mediante recursión o iteración sin memoización, lo que la obliga a recorrer la secuencia completa en cada petición. Para n = 1.000.000 realiza ~1 millón de operaciones aritméticas con números de precisión arbitraria (`big-integer`), lo que es intensivo en CPU y explica los ~6 segundos por petición.
+
+### Pregunta 5 – Consumo de CPU (tamaño inicial)
+
+![CPU consumo tamaño inicial](images/part1/part1-cpu-initial.png)
+
+**Interpretación:** El consumo de CPU ronda el 2.32% en reposo porque la plataforma de métricas reporta el promedio del período completo. Durante la ejecución de las peticiones la CPU alcanza el 100% momentáneamente (el algoritmo es puramente computacional, sin I/O que libere el hilo). Con el tamaño inicial (D2as_v4, 2 vCPUs) una sola petición puede saturar un núcleo por completo, impidiendo que otras peticiones concurrentes sean atendidas con normalidad.
+
+### Pregunta 6 – Resumen de ejecución Postman/Newman (tamaño inicial)
+
+![Newman resultados tamaño inicial](images/part1/part1-newman-initial.png)
+
+**Interpretación:**
+- **Tiempos de ejecución:** Todas las peticiones tardaron entre 6.3 s y 6.5 s (promedio 6.3 s, s.d. 72 ms). La variación mínima indica que el algoritmo es determinista y la carga de red es despreciable comparada con el tiempo de cómputo.
+- **Fallos:** 0 de 10 peticiones fallaron. La VM procesó las 10 iteraciones secuenciales sin errores, aunque el tiempo total fue de 1 minuto 4.6 segundos, lo que demuestra que el sistema no puede atender concurrencia real sin degradar el servicio.
+
+### Pregunta 7 – Diferencia entre B2ms y B1ls
+
+| Característica | B1ls | B2ms |
+|---|---|---|
+| vCPUs | 1 | 2 |
+| RAM | 0.5 GB | 8 GB |
+| Almacenamiento temporal | 4 GB | 16 GB |
+| Créditos CPU/hora | 6 | 24 |
+| Costo aprox. | ~$3.80/mes | ~$60/mes |
+| Modelo de bursting | Burstable (acumula créditos en reposo, los consume en picos) | Burstable con mayor baseline |
+
+La diferencia más relevante no es solo de specs: la **B1ls está diseñada para cargas mínimas** (CI/CD agents, proxies ligeros), mientras que la **B2ms** puede sostener picos de CPU por más tiempo gracias a sus 24 créditos/hora y tiene suficiente RAM para cargas de trabajo reales. Con la FibonacciApp, la B1ls agotaría sus créditos de CPU rápidamente bajo carga concurrente y el rendimiento caería al baseline (10% de 1 vCPU).
+
+### Pregunta 8 – ¿Es buena solución escalar verticalmente?
+
+No es la solución óptima para este escenario. Aumentar el tamaño de la VM mejora el throughput para una sola petición pesada, pero el algoritmo sin memoización seguirá consumiendo 100% de un núcleo por petición. Con 4 vCPUs podemos atender 4 peticiones simultáneas, pero el costo de la VM se dispara. Además, **al cambiar el tamaño la VM se reinicia**, por lo que la FibonacciApp deja de estar disponible durante el proceso de redimensionamiento (downtime).
+
+### Pregunta 9 – Efectos del cambio de tamaño
+
+Al redimensionar la VM, Azure **detiene y reinicia** la máquina virtual. Efectos negativos:
+- **Downtime:** El servicio queda inaccesible durante el reinicio (~1-3 minutos).
+- **Pérdida del estado en memoria:** Cualquier caché o sesión en memoria se pierde.
+- **IP dinámica:** Si la IP pública no es estática, puede cambiar.
+- **Costo inmediato:** El cambio a un tamaño mayor incrementa la factura a partir del momento del cambio, aunque la carga sea baja.
+
+### Pregunta 10 – ¿Hubo mejora? (pendiente con D4as_v4)
+
+*Esta respuesta se completará luego de repetir los pasos 7, 8 y 9 con el nuevo tamaño D4as_v4.*
+
+### Pregunta 11 – 4 instancias paralelas de newman (pendiente)
+
+*Esta respuesta se completará al ejecutar el comando con 4 instancias paralelas.*
+
 ### Parte 2 - Escalabilidad horizontal
 
 #### Crear el Balanceador de Carga
