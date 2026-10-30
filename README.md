@@ -232,20 +232,20 @@ El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que co
 ![Newman resultados D4as_v4](images/part1/part1-newman-4parallel.png)
 
 **Resultados:**
-- Iteraciones: 10 — Fallos: 0
-- Duración total: **1m 4.7s**
-- Tiempo promedio de respuesta: **6.3s** [min: 6.3s, max: 6.5s, s.d.: 60ms]
+- Iteraciones: 10 — Fallos: **1**
+- Duración total: **2m 9s**
+- Tiempo promedio de respuesta: **12.4s** [min: 6.3s, max: 21.8s, s.d.: 4.9s]
 
 **Comparación inicial vs escalado:**
 
 | Métrica | Tamaño inicial | D4as_v4 (escalado) |
 |---|---|---|
-| Duración total | 1m 4.6s | 1m 4.7s |
-| Tiempo promedio | 6.3s | 6.3s |
+| Duración total | 1m 4.6s | 2m 9s |
+| Tiempo promedio | 6.3s | 12.4s |
 | Mínimo | 6.3s | 6.3s |
-| Máximo | 6.5s | 6.5s |
-| Desviación estándar | 72ms | 60ms |
-| Fallos | 0/10 | 0/10 |
+| Máximo | 6.5s | 21.8s |
+| Desviación estándar | 72ms | 4.9s |
+| Fallos | 0/10 | 1/10 |
 
 ### Pregunta 10 – ¿Hubo mejora en el consumo de CPU o en los tiempos de respuesta?
 
