@@ -118,9 +118,9 @@ Azure crea automáticamente 5 recursos adicionales junto con la VM:
 
 ### Pregunta 3 – Por qué se cae la app al cerrar SSH
 
-Al ejecutar `node FibonacciApp.js` en la terminal SSH, el proceso pertenece a esa sesión de shell. Cuando se cierra la conexión SSH, el sistema operativo envía la señal SIGHUP a todos los procesos hijos de esa sesión, lo que termina el proceso Node.js. Para que la aplicación sobreviva se debe usar forever, pm2, nohup o un servicio systemd que desacople el proceso de la sesión SSH.
+Al ejecutar `node FibonacciApp.js` en la terminal SSH, el proceso pertenece a esa sesión de shell, cuando se cierra la conexión SSH el sistema operativo envía la señal SIGHUP a todos los procesos hijos de esa sesión, lo que termina el proceso Node.js. Para que la aplicación sobreviva se debe usar forever, pm2, nohup o un servicio systemd que desacople el proceso de la sesión SSH
 
-El Inbound port rule es necesario porque el NSG bloquea todo el tráfico entrante por defecto. Sin la regla que abre el puerto 3000, el firewall descarta los paquetes antes de que lleguen a la aplicación, aunque esta esté corriendo correctamente dentro de la VM.
+El Inbound port rule es necesario porque el NSG bloquea todo el tráfico entrante por defecto. Sin la regla que abre el puerto 3000, el firewall descarta los paquetes antes de que lleguen a la aplicación, aunque esté corriendo correctamente dentro de la VM.
 
 ### Pregunta 4 – Tabla de tiempos (tamaño inicial)
 
@@ -162,9 +162,9 @@ El consumo de CPU ronda el 2.32% porque la plataforma de métricas reporta el pr
 
 ![Newman resultados tamaño inicial](images/part1/part1-newman-initial.png)
 
-Tiempos de ejecución: todas las peticiones tardaron entre 6.3 s y 6.5 s (promedio 6.3 s, s.d. 72 ms). La variación mínima indica que el algoritmo es determinista y la carga de red es despreciable comparada con el tiempo de cómputo.
+Tiempos de ejecución con las peticiones tardaron entre 6.3 s y 6.5 s (promedio 6.3 s, s.d. 72 ms). La variación mínima indica que el algoritmo es determinista y la carga de red es despreciable comparada con el tiempo de cómputo.
 
-Fallos: 0 de 10 peticiones fallaron. La VM procesó las 10 iteraciones secuenciales sin errores, aunque el tiempo total fue de 1 minuto 4.6 segundos, lo que demuestra que el sistema no puede atender concurrencia real sin degradar el servicio.
+Fallos 0 de 10 peticiones fallaron. La VM procesó las 10 iteraciones secuenciales sin errores, aunque el tiempo total fue de 1 minuto 4.6 segundos, lo que demuestra que el sistema no puede atender concurrencia real sin degradar el servicio.
 
 ### Pregunta 7 – Diferencia entre B2ms y B1ls
 
@@ -177,7 +177,7 @@ Fallos: 0 de 10 peticiones fallaron. La VM procesó las 10 iteraciones secuencia
 | Costo aprox. | ~$3.80/mes | ~$60/mes |
 | Modelo de bursting | Burstable (acumula créditos en reposo, los consume en picos) | Burstable con mayor baseline |
 
-La diferencia más relevante no es solo de specs: la B1ls está diseñada para cargas mínimas (CI/CD agents, proxies ligeros), mientras que la B2ms puede sostener picos de CPU por más tiempo gracias a sus 24 créditos/hora y tiene suficiente RAM para cargas de trabajo reales. Con la FibonacciApp, la B1ls agotaría sus créditos de CPU rápidamente bajo carga concurrente y el rendimiento caería al baseline (10% de 1 vCPU).
+la B1ls está diseñada para cargas mínimas (CI/CD agents, proxies ligeros), mientras que la B2ms puede sostener picos de CPU por más tiempo gracias a sus 24 créditos/hora y tiene suficiente RAM para cargas de trabajo reales. Con la FibonacciApp, la B1ls agotaría sus créditos de CPU rápidamente bajo carga concurrente y el rendimiento caería al baseline (10% de 1 vCPU).
 
 ### Pregunta 8 – ¿Es buena solución escalar verticalmente?
 
@@ -208,7 +208,7 @@ Tiempos medidos con DevTools después del escalamiento vertical a Standard_D4as_
 | 1.080.000 | ~30 s |
 | 1.090.000 | ~11 s |
 
-> Los tiempos más largos se explican porque el timeline de DevTools acumula todas las peticiones de la sesión de navegación. Cuando varias pestañas se abren casi simultáneamente, las peticiones se encolan en el servidor Node.js (single-threaded) y cada una espera a que termine la anterior.
+Los tiempos más largos se explican porque el timeline de DevTools acumula todas las peticiones de la sesión de navegación. Cuando varias pestañas se abren casi simultáneamente, las peticiones se encolan en el servidor Node.js (single-threaded) y cada una espera a que termine la anterior.
 
 ![fibonacci/1000000 - D4as_v4](images/part1/part1-scaled-browser-1000000.png)
 ![fibonacci/1010000 - D4as_v4](images/part1/part1-scaled-browser-1010000.png)
@@ -282,6 +282,10 @@ Comparativa paso 9 (2 paralelas) vs paso 11 (4 paralelas):
 | Desviación estándar | 4.9s | ~7-13s |
 
 El comportamiento con 4 instancias es peor que con 2. El tiempo promedio subió de 12.4s a ~19s y la tasa de fallos aumentó de 1/10 a 4/40. Con 4 instancias enviando 40 peticiones simultáneas al servidor Node.js (single-threaded), la cola se hace más larga: las peticiones al final esperan hasta ~38s y algunas agotaron el timeout del cliente (ECONNRESET). Esto demuestra que el escalamiento vertical no resuelve el problema de concurrencia para este escenario.
+
+https://youtu.be/T3jpBQgWDSo
+
+
 
 ### Parte 2 - Escalabilidad horizontal
 
