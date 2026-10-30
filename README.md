@@ -191,9 +191,41 @@ Al redimensionar la VM, Azure **detiene y reinicia** la máquina virtual. Efecto
 - **IP dinámica:** Si la IP pública no es estática, puede cambiar.
 - **Costo inmediato:** El cambio a un tamaño mayor incrementa la factura a partir del momento del cambio, aunque la carga sea baja.
 
-### Pregunta 10 – ¿Hubo mejora? (pendiente con D4as_v4)
+### Paso 7 repetido – Tiempos de respuesta con D4as_v4
 
-*Esta respuesta se completará luego de repetir los pasos 7, 8 y 9 con el nuevo tamaño D4as_v4.*
+Tiempos medidos con DevTools después del escalamiento vertical a Standard_D4as_v4 (4 vCPUs):
+
+| n-ésimo Fibonacci | Tiempo aprox. |
+|---|---|
+| 1.000.000 | ~6 s |
+| 1.010.000 | ~10 s |
+| 1.020.000 | ~27 s |
+| 1.030.000 | ~6 s |
+| 1.040.000 | ~10 s |
+| 1.050.000 | ~45 s |
+| 1.060.000 | ~6 s |
+| 1.070.000 | ~27 s |
+| 1.080.000 | ~30 s |
+| 1.090.000 | ~11 s |
+
+> Los tiempos más largos se explican porque el timeline de DevTools acumula todas las peticiones de la sesión de navegación. Cuando varias pestañas se abren casi simultáneamente, las peticiones se encolan en el servidor Node.js (single-threaded) y cada una espera a que termine la anterior.
+
+![fibonacci/1000000 - D4as_v4](images/part1/part1-scaled-browser-1000000.png)
+![fibonacci/1010000 - D4as_v4](images/part1/part1-scaled-browser-1010000.png)
+![fibonacci/1020000 - D4as_v4](images/part1/part1-scaled-browser-1020000.png)
+![fibonacci/1040000 - D4as_v4](images/part1/part1-scaled-browser-1040000.png)
+![fibonacci/1050000 - D4as_v4](images/part1/part1-scaled-browser-1050000.png)
+![fibonacci/1070000 - D4as_v4](images/part1/part1-scaled-browser-1070000.png)
+![fibonacci/1080000 - D4as_v4](images/part1/part1-scaled-browser-1080000.png)
+![fibonacci/1090000 - D4as_v4](images/part1/part1-scaled-browser-1090000.png)
+
+### Paso 8 repetido – CPU con D4as_v4 (pendiente después de newman)
+
+*Capturar el pico de CPU en Azure Monitor después de ejecutar las pruebas de newman.*
+
+### Pregunta 10 – ¿Hubo mejora en el consumo de CPU o en los tiempos de respuesta?
+
+**No hubo mejora significativa.** Aunque el D4as_v4 tiene 4 vCPUs (el doble que el tamaño inicial), el algoritmo de Fibonacci está implementado sin memoización y Node.js es **single-threaded**: una sola petición ocupa un núcleo al 100% mientras las demás esperan en cola. Duplicar o cuadruplicar los vCPUs no reduce el tiempo de cálculo de una petición individual, solo permite procesar más peticiones en paralelo (pero aun así de una en una en Node.js). El tiempo por petición individual sigue siendo ~6 s.
 
 ### Pregunta 11 – 4 instancias paralelas de newman (pendiente)
 
