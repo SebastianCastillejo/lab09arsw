@@ -229,7 +229,7 @@ El gráfico muestra los pequeños picos de CPU alrededor de las 7–9 PM, que co
 
 ### Paso 9 repetido – Newman con D4as_v4
 
-![Newman 4 instancias paralelas](images/part1/part1-newman-4parallel.png)
+![Newman resultados D4as_v4](images/part1/part1-newman-scaled.png)
 
 **Resultados:**
 - Iteraciones: 10 — Fallos: 0
